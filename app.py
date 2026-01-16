@@ -1,7 +1,9 @@
 import streamlit as st
+import json
+from pathlib import Path
 
 # =========================
-# KONFIGURASI HALAMAN
+# KONFIGURASI
 # =========================
 st.set_page_config(
     page_title="URL Launcher",
@@ -9,76 +11,93 @@ st.set_page_config(
     layout="centered"
 )
 
+DATA_FILE = Path("urls.json")
+
 # =========================
-# STYLE CSS
+# LOAD & SAVE
+# =========================
+def load_urls():
+    if DATA_FILE.exists():
+        return json.loads(DATA_FILE.read_text())
+    return []
+
+def save_urls(urls):
+    DATA_FILE.write_text(json.dumps(urls, indent=2))
+
+# =========================
+# SESSION INIT
+# =========================
+if "urls" not in st.session_state:
+    st.session_state.urls = load_urls()
+
+# =========================
+# STYLE
 # =========================
 st.markdown("""
 <style>
-body {
-    background: #f4f6f8;
-}
+body { background:#f4f6f8; }
 .card {
-    background: white;
-    padding: 14px 18px;
-    border-radius: 12px;
-    margin-bottom: 10px;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    background:white;
+    padding:14px 18px;
+    border-radius:12px;
+    margin-bottom:10px;
+    box-shadow:0 6px 16px rgba(0,0,0,0.08);
 }
 .url-text {
-    font-size: 15px;
-    color: #000000;
-    word-break: break-all;
-    font-weight: 500;
+    font-size:15px;
+    color:black;
+    word-break:break-all;
+    font-weight:500;
 }
 .title {
-    font-size: 30px;
-    font-weight: bold;
-    color: #000000;
+    font-size:30px;
+    font-weight:bold;
+    color:black;
 }
 .subtitle {
-    color: #333333;
-    margin-bottom: 18px;
+    color:#333;
+    margin-bottom:18px;
 }
-.stButton > button {
-    border-radius: 8px;
-    font-weight: bold;
+.stButton>button {
+    border-radius:8px;
+    font-weight:bold;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# SESSION STATE
-# =========================
-if "urls" not in st.session_state:
-    st.session_state.urls = []
-
-# =========================
 # HEADER
 # =========================
-st.markdown('<div class="title">🔗 URL Launcher</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Masukkan URL dan buka dengan satu klik</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">🔗 MASTER SERVER LIVE</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">URL tetap tersimpan meskipun refresh / pindah browser</div>', unsafe_allow_html=True)
 
 # =========================
-# INPUT URL
+# INPUT
 # =========================
 url_input = st.text_input(
     "Masukkan URL",
     placeholder="https://serverlive1.streamlit.app"
 )
 
-col1, col2 = st.columns([1, 1])
+c1, c2 = st.columns(2)
 
-with col1:
+with c1:
     if st.button("➕ Tambahkan"):
         if url_input.strip():
-            st.session_state.urls.append(url_input.strip())
-            st.success("URL ditambahkan")
+            if url_input not in st.session_state.urls:
+                st.session_state.urls.append(url_input.strip())
+                save_urls(st.session_state.urls)
+                st.success("URL tersimpan permanen")
+            else:
+                st.warning("URL sudah ada")
         else:
-            st.warning("URL tidak boleh kosong")
+            st.warning("URL kosong")
 
-with col2:
-    if st.button("🧹 Reset"):
-        st.session_state.urls.clear()
+with c2:
+    if st.button("🧹 Hapus Semua"):
+        st.session_state.urls = []
+        save_urls([])
+        st.success("Semua URL dihapus")
 
 st.divider()
 
@@ -90,19 +109,20 @@ st.subheader("📂 Daftar URL")
 if not st.session_state.urls:
     st.info("Belum ada URL")
 else:
-    for i, url in enumerate(st.session_state.urls, start=1):
+    for i, url in enumerate(st.session_state.urls):
         st.markdown(f"""
         <div class="card">
-            <div class="url-text">{i}. {url}</div>
+            <div class="url-text">{i+1}. {url}</div>
         </div>
         """, unsafe_allow_html=True)
 
-        c1, c2 = st.columns([1, 1])
+        col1, col2 = st.columns([1,1])
 
-        with c1:
+        with col1:
             st.link_button("🌐 Open", url)
 
-        with c2:
-            if st.button("❌ Hapus", key=f"delete_{i}"):
-                st.session_state.urls.pop(i - 1)
+        with col2:
+            if st.button("❌ Hapus", key=f"del_{i}"):
+                st.session_state.urls.pop(i)
+                save_urls(st.session_state.urls)
                 st.experimental_rerun()
