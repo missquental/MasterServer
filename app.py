@@ -14,12 +14,30 @@ st.set_page_config(
 DATA_FILE = Path("urls.json")
 
 # =========================
-# LOAD & SAVE
+# LOAD & MIGRASI DATA
 # =========================
 def load_data():
-    if DATA_FILE.exists():
-        return json.loads(DATA_FILE.read_text())
-    return []
+    if not DATA_FILE.exists():
+        return []
+
+    raw = json.loads(DATA_FILE.read_text())
+    data = []
+
+    for item in raw:
+        # FORMAT LAMA (STRING)
+        if isinstance(item, str):
+            data.append({
+                "url": item,
+                "note": ""
+            })
+        # FORMAT BARU (DICT)
+        elif isinstance(item, dict):
+            data.append({
+                "url": item.get("url", ""),
+                "note": item.get("note", "")
+            })
+
+    return data
 
 def save_data(data):
     DATA_FILE.write_text(json.dumps(data, indent=2))
@@ -29,6 +47,7 @@ def save_data(data):
 # =========================
 if "data" not in st.session_state:
     st.session_state.data = load_data()
+    save_data(st.session_state.data)  # auto upgrade file
 
 # =========================
 # STYLE
@@ -48,7 +67,6 @@ body { background:#f4f6f8; }
     color:black;
     word-break:break-all;
     font-weight:600;
-    margin-bottom:6px;
 }
 .title {
     font-size:30px;
@@ -59,10 +77,6 @@ body { background:#f4f6f8; }
     color:#333;
     margin-bottom:18px;
 }
-.stButton>button {
-    border-radius:8px;
-    font-weight:bold;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -70,10 +84,10 @@ body { background:#f4f6f8; }
 # HEADER
 # =========================
 st.markdown('<div class="title">🔗 URL Launcher</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Edit keterangan langsung tanpa hapus URL</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Edit keterangan langsung & aman</div>', unsafe_allow_html=True)
 
 # =========================
-# INPUT URL BARU
+# INPUT URL
 # =========================
 url_input = st.text_input(
     "Masukkan URL",
@@ -104,30 +118,28 @@ else:
     for i, item in enumerate(st.session_state.data):
         st.markdown(f"""
         <div class="card">
-            <div class="url-text">{i+1}. {item['url']}</div>
+            <div class="url-text">{i+1}. {item["url"]}</div>
         </div>
         """, unsafe_allow_html=True)
 
-        # EDIT KETERANGAN (MANUAL)
         note = st.text_input(
             "Keterangan",
-            value=item.get("note", ""),
+            value=item["note"],
             key=f"note_{i}",
             placeholder="Isi keterangan di sini..."
         )
 
-        # AUTO SAVE JIKA BERUBAH
-        if note != item.get("note", ""):
+        if note != item["note"]:
             st.session_state.data[i]["note"] = note
             save_data(st.session_state.data)
 
-        col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns(2)
 
         with col1:
             st.link_button("🌐 Open", item["url"])
 
         with col2:
-            if st.button("❌ Hapus URL", key=f"del_{i}"):
+            if st.button("❌ Hapus", key=f"del_{i}"):
                 st.session_state.data.pop(i)
                 save_data(st.session_state.data)
                 st.experimental_rerun()
