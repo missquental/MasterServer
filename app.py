@@ -16,19 +16,19 @@ DATA_FILE = Path("urls.json")
 # =========================
 # LOAD & SAVE
 # =========================
-def load_urls():
+def load_data():
     if DATA_FILE.exists():
         return json.loads(DATA_FILE.read_text())
     return []
 
-def save_urls(urls):
-    DATA_FILE.write_text(json.dumps(urls, indent=2))
+def save_data(data):
+    DATA_FILE.write_text(json.dumps(data, indent=2))
 
 # =========================
 # SESSION INIT
 # =========================
-if "urls" not in st.session_state:
-    st.session_state.urls = load_urls()
+if "data" not in st.session_state:
+    st.session_state.data = load_data()
 
 # =========================
 # STYLE
@@ -38,16 +38,17 @@ st.markdown("""
 body { background:#f4f6f8; }
 .card {
     background:white;
-    padding:14px 18px;
+    padding:16px;
     border-radius:12px;
-    margin-bottom:10px;
+    margin-bottom:12px;
     box-shadow:0 6px 16px rgba(0,0,0,0.08);
 }
 .url-text {
     font-size:15px;
     color:black;
     word-break:break-all;
-    font-weight:500;
+    font-weight:600;
+    margin-bottom:6px;
 }
 .title {
     font-size:30px;
@@ -68,61 +69,65 @@ body { background:#f4f6f8; }
 # =========================
 # HEADER
 # =========================
-st.markdown('<div class="title">🔗 MASTER SERVER LIVE</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">URL tetap tersimpan meskipun refresh / pindah browser</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">🔗 URL Launcher</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Edit keterangan langsung tanpa hapus URL</div>', unsafe_allow_html=True)
 
 # =========================
-# INPUT
+# INPUT URL BARU
 # =========================
 url_input = st.text_input(
     "Masukkan URL",
     placeholder="https://serverlive1.streamlit.app"
 )
 
-c1, c2 = st.columns(2)
-
-with c1:
-    if st.button("➕ Tambahkan"):
-        if url_input.strip():
-            if url_input not in st.session_state.urls:
-                st.session_state.urls.append(url_input.strip())
-                save_urls(st.session_state.urls)
-                st.success("URL tersimpan permanen")
-            else:
-                st.warning("URL sudah ada")
-        else:
-            st.warning("URL kosong")
-
-with c2:
-    if st.button("🧹 Hapus Semua"):
-        st.session_state.urls = []
-        save_urls([])
-        st.success("Semua URL dihapus")
+if st.button("➕ Tambahkan URL"):
+    if url_input.strip():
+        st.session_state.data.append({
+            "url": url_input.strip(),
+            "note": ""
+        })
+        save_data(st.session_state.data)
+        st.success("URL ditambahkan")
+    else:
+        st.warning("URL tidak boleh kosong")
 
 st.divider()
 
 # =========================
-# LIST URL
+# LIST URL + EDIT KETERANGAN
 # =========================
 st.subheader("📂 Daftar URL")
 
-if not st.session_state.urls:
+if not st.session_state.data:
     st.info("Belum ada URL")
 else:
-    for i, url in enumerate(st.session_state.urls):
+    for i, item in enumerate(st.session_state.data):
         st.markdown(f"""
         <div class="card">
-            <div class="url-text">{i+1}. {url}</div>
+            <div class="url-text">{i+1}. {item['url']}</div>
         </div>
         """, unsafe_allow_html=True)
 
-        col1, col2 = st.columns([1,1])
+        # EDIT KETERANGAN (MANUAL)
+        note = st.text_input(
+            "Keterangan",
+            value=item.get("note", ""),
+            key=f"note_{i}",
+            placeholder="Isi keterangan di sini..."
+        )
+
+        # AUTO SAVE JIKA BERUBAH
+        if note != item.get("note", ""):
+            st.session_state.data[i]["note"] = note
+            save_data(st.session_state.data)
+
+        col1, col2 = st.columns([1, 1])
 
         with col1:
-            st.link_button("🌐 Open", url)
+            st.link_button("🌐 Open", item["url"])
 
         with col2:
-            if st.button("❌ Hapus", key=f"del_{i}"):
-                st.session_state.urls.pop(i)
-                save_urls(st.session_state.urls)
+            if st.button("❌ Hapus URL", key=f"del_{i}"):
+                st.session_state.data.pop(i)
+                save_data(st.session_state.data)
                 st.experimental_rerun()
